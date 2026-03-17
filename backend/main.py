@@ -588,3 +588,31 @@ async def api_refresh_indices(include_embeddings: bool = False):
     import_all()
     results = build_all_indices(skip_embeddings=not include_embeddings)
     return {"status": "refreshed", **results}
+
+
+@app.post("/api/admin/import/ingredient-master")
+async def api_import_ingredient_master(file: UploadFile = File(...)):
+    """Upload the Ingredient Master Excel and import all tabs."""
+    safe_fn = re.sub(r'[^\w\-. ]', '_', Path(file.filename or "master.xlsx").name)
+    save_path = DATA_DIR / "admin_imports" / safe_fn
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    content = await file.read()
+    with open(str(save_path), "wb") as f:
+        f.write(content)
+
+    from backend.services.excel_import import import_enova_data, import_master_tab, import_supplier_tab
+    results: dict[str, int] = {}
+    results["enova_data"] = import_enova_data(save_path)
+    results["master"] = import_master_tab(save_path)
+    supplier_tabs = [
+        ("UAA US", "uaa_us"), ("Kingdom US", "kingdom_us"),
+        ("CharlesBowman", "charlesbowman"), ("LGB", "lgb"),
+        ("Nutravative", "nutravative"), ("专利原料", "patented"),
+        ("Runde Glucosamine", "runde"),
+    ]
+    for tab_name, source_key in supplier_tabs:
+        results[source_key] = import_supplier_tab(save_path, tab_name, source_key)
+
+    build_all_indices(skip_embeddings=True)
+    total = sum(results.values())
+    return {"status": "imported", "total": total, "tabs": results}
