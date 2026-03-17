@@ -227,37 +227,44 @@ def _get_chat_history(session_id: str, limit: int = 50) -> list[dict]:
 
 def _generate_session_topic(session_id: str, first_message: str):
     """Generate a short topic name for the session from the first user message."""
-    # Extract a concise topic without an API call — just parse the message
     msg = first_message.strip()
 
-    # Common pattern: "I'm interested in creating a product with X"
+    # Skip file upload messages — use a generic name instead
+    if msg.startswith("[File:") or "I've uploaded" in msg or "uploaded a file" in msg.lower():
+        topic = "File Upload"
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE sessions SET client_name=?, updated_at=datetime('now') WHERE id=? AND client_name IS NULL",
+                (topic, session_id),
+            )
+        return
+
+    # Extract product type from standard messages
     topic = None
     for pattern in [
         "product with ", "product using ", "interested in ", "want to make ",
-        "need ", "looking for ", "create ", "formulate ",
+        "need ", "looking for ", "create a ", "create ", "formulate ",
     ]:
         idx = msg.lower().find(pattern)
         if idx >= 0:
             after = msg[idx + len(pattern):].strip().rstrip(".,!?")
-            # Take first few meaningful words
-            words = after.split()[:4]
+            words = after.split()[:5]
             topic = " ".join(words).strip(".,!?")
             break
 
     if not topic:
-        # Fallback: first 4 words of the message
-        words = msg.split()[:4]
+        words = msg.split()[:5]
         topic = " ".join(words).strip(".,!?")
 
     if topic:
-        # Clean up: remove trailing partial sentences, cap at ~30 chars
-        for sep in ['.', '?', '!', ',', ' can ', ' and ', ' with ']:
+        # Clean up markdown and special chars
+        topic = topic.replace("**", "").replace("*", "").replace("#", "")
+        for sep in ['.', '?', '!', ' can ', ' and ']:
             if sep in topic.lower():
                 topic = topic[:topic.lower().index(sep)].strip()
-        # Take max 4 words
-        topic = " ".join(topic.split()[:4])
-        # Capitalize nicely
-        topic = topic.title() if len(topic) < 35 else topic[:35].title()
+        topic = " ".join(topic.split()[:5])
+        topic = topic.title() if len(topic) < 40 else topic[:40].title()
+
         with get_db() as conn:
             conn.execute(
                 "UPDATE sessions SET client_name=?, updated_at=datetime('now') WHERE id=? AND client_name IS NULL",
