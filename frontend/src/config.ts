@@ -1,8 +1,11 @@
 /**
  * API base URL for the backend.
  *
- * Production (Vercel): set VITE_API_URL env var to backend URL.
- * Local dev: falls back to localhost:8000 (Vite proxy handles /api).
+ * Production (Vercel): set VITE_API_URL env var to override.
+ * Local dev: Vite proxy handles /api → localhost:8000 automatically,
+ * so we use "" (empty = relative URL = same origin = proxy works).
  */
-export const API_BASE =
-  (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
+const _env = import.meta.env.VITE_API_URL as string | undefined;
+export const API_BASE: string =
+  _env ||
+  (import.meta.env.DEV ? "" : "https://orca-app-ewxva.ondigitalocean.app");
