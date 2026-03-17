@@ -28,7 +28,12 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 EMBEDDING_DIM = 1536
 
 # Source data (paths configurable via env for deployment)
-INGREDIENT_MASTER_PATH = Path(os.getenv("INGREDIENT_MASTER_PATH", str(BASE_DIR / "Ingredient Master(条包模板） 2.xlsx")))
+INGREDIENT_MASTER_PATH = Path(os.getenv(
+    "INGREDIENT_MASTER_PATH",
+    str(BASE_DIR / "ingredient-master.xlsx")
+    if (BASE_DIR / "ingredient-master.xlsx").exists()
+    else str(BASE_DIR / "Ingredient Master(条包模板） 2.xlsx"),
+))
 MFSO_TEMPLATE_PATH = Path(os.getenv("MFSO_TEMPLATE_PATH", str(BASE_DIR / "MFSO P25267-V2 Red Ginseng Powder Capsules 180ct 12-18-25 Copy.pdf")))
 
 # PostgreSQL (production); leave unset for SQLite (local dev)
