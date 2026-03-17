@@ -1,12 +1,12 @@
 import { useState } from 'react';
 
 const PRODUCT_TYPES = [
-  { key: 'capsule', label: 'Capsules',  image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=240&h=240&fit=crop&q=80' },
-  { key: 'tablet',  label: 'Tablets',   image: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=240&h=240&fit=crop&q=80' },
-  { key: 'powder',  label: 'Powders',   image: 'https://images.unsplash.com/photo-1607532941433-304659e8198a?w=240&h=240&fit=crop&q=80' },
-  { key: 'gummy',   label: 'Gummies',   image: 'https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?w=240&h=240&fit=crop&q=80' },
-  { key: 'liquid',  label: 'Liquids',   image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=240&h=240&fit=crop&q=80' },
-  { key: 'softgel', label: 'Softgels',  image: 'https://images.unsplash.com/photo-1550572017-edd951aa8f72?w=240&h=240&fit=crop&q=80' },
+  { key: 'capsule', label: 'Capsules',  image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=280&h=280&fit=crop&q=80' },
+  { key: 'tablet',  label: 'Tablets',   image: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=280&h=280&fit=crop&q=80' },
+  { key: 'powder',  label: 'Powders',   image: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?w=280&h=280&fit=crop&q=80' },
+  { key: 'gummy',   label: 'Gummies',   image: 'https://images.unsplash.com/photo-1609840114035-3c981b782dfe?w=280&h=280&fit=crop&q=80' },
+  { key: 'liquid',  label: 'Liquids',   image: 'https://images.unsplash.com/photo-1563191911-e65f8655ebf9?w=280&h=280&fit=crop&q=80' },
+  { key: 'softgel', label: 'Softgels',  image: 'https://images.unsplash.com/photo-1512069772995-ec65ed45afd6?w=280&h=280&fit=crop&q=80' },
 ];
 
 interface IngredientGridProps {
