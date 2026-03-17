@@ -224,10 +224,16 @@ export default function App() {
     const extracted: string = data.extracted || '';
     const charCount: number = data.extracted_length || 0;
 
-    if (extracted && charCount > 0) {
-      return `I've uploaded **${file.name}**. The system extracted the following content (${charCount} chars):\n\n---\n${extracted}\n---\n\nPlease analyze this data and identify all relevant supplement information (ingredients, dosages, formulation, pricing, specs).`;
+    if (extracted && charCount > 0 && !extracted.startsWith('[')) {
+      return `[File: ${file.name}]\n\nExtracted content from the uploaded file:\n\n${extracted}\n\nPlease analyze this data and identify all relevant supplement information (ingredients, dosages, formulation, pricing, specs).`;
     }
-    return `I've uploaded **${file.name}**. Please analyze it and extract any relevant product information.`;
+    const isImage = file.type.startsWith('image/');
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+    const isPdf = file.name.endsWith('.pdf');
+    if (isImage) return `[File: ${file.name}]\n\nI've uploaded an image. Please analyze it for any supplement formulation, label, or ingredient information.`;
+    if (isExcel) return `[File: ${file.name}]\n\nI've uploaded an Excel file. Please extract ingredient lists, pricing, or formulation data.`;
+    if (isPdf) return `[File: ${file.name}]\n\nI've uploaded a PDF. Please extract product specifications, formulas, or pricing information.`;
+    return `[File: ${file.name}]\n\nI've uploaded a file. Please analyze it and extract any relevant product information.`;
   }, []);
 
   const handleLandingFileUpload = useCallback(async (file: File) => {

@@ -5,6 +5,38 @@ import type { ChatMessage } from '../hooks/useSSEStream';
 import ThinkingBlock from './ThinkingBlock';
 import SuggestionChips from './SuggestionChips';
 
+function UserMessage({ content }: { content: string }) {
+  const fileMatch = content.match(/^\[File: (.+?)\]\n\n([\s\S]*)$/);
+  if (!fileMatch) return <>{content}</>;
+
+  const fileName = fileMatch[1];
+  const restOfMessage = fileMatch[2];
+  const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(fileName);
+  const isPdf = /\.pdf$/i.test(fileName);
+  const isExcel = /\.(xlsx|xls)$/i.test(fileName);
+
+  const icon = isImage ? '🖼️' : isPdf ? '📄' : isExcel ? '📊' : '📎';
+  const hasExtracted = restOfMessage.includes('Extracted content');
+  const displayText = hasExtracted
+    ? 'Uploaded — content extracted and sent for analysis'
+    : restOfMessage.replace(/^I've uploaded .+?\. /, '').trim();
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 bg-blue-500/30 rounded-lg px-3 py-2 mb-2">
+        <span className="text-lg">{icon}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-medium truncate">{fileName}</div>
+          {hasExtracted && (
+            <div className="text-[11px] text-blue-100">Content extracted</div>
+          )}
+        </div>
+      </div>
+      <div className="text-[13px] opacity-90">{displayText}</div>
+    </div>
+  );
+}
+
 interface ChatProps {
   messages: ChatMessage[];
   isStreaming: boolean;
@@ -98,7 +130,7 @@ export default function Chat({
             ) : msg.role === 'user' ? (
               <div className="flex justify-end">
                 <div className="bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2.5 max-w-[75%] text-[14px] leading-relaxed shadow-sm">
-                  {msg.content}
+                  <UserMessage content={msg.content} />
                 </div>
               </div>
             ) : (

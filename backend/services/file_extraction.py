@@ -159,7 +159,7 @@ def _extract_image_vision(path: Path, content_type: str) -> str:
                     ],
                 },
             ],
-            max_tokens=2000,
+            max_completion_tokens=2000,
         )
 
         result = response.choices[0].message.content or ""
