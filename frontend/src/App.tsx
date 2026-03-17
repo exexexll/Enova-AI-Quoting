@@ -163,7 +163,7 @@ export default function App() {
   } = useSSEStream();
 
   const {
-    currentSession, sessions, createSession, loadSessions, selectSession, clearSession,
+    currentSession, sessions, sessionError, createSession, loadSessions, selectSession, clearSession,
   } = useSession();
 
   const [showHistory, setShowHistory] = useState(false);
@@ -172,20 +172,28 @@ export default function App() {
   useEffect(() => { loadSessions(); }, [loadSessions]);
 
   const handleStartChat = useCallback(async (firstMessage: string) => {
-    resetChat(); // Clear old messages/state
-    const session = await createSession();
-    setView('chat');
-    loadSessions();
-    sendMessage(session.id, firstMessage);
+    resetChat();
+    try {
+      const session = await createSession();
+      setView('chat');
+      loadSessions();
+      sendMessage(session.id, firstMessage);
+    } catch {
+      // sessionError state already set by useSession
+    }
   }, [createSession, sendMessage, loadSessions, resetChat]);
 
   const handleSelectProductType = useCallback(async (productType: string) => {
     resetChat();
-    const session = await createSession(productType);
-    setView('chat');
-    loadSessions();
-    const label = productType.charAt(0).toUpperCase() + productType.slice(1);
-    sendMessage(session.id, `I'd like to create a ${label} supplement product. Can you help me with formulation and pricing?`);
+    try {
+      const session = await createSession(productType);
+      setView('chat');
+      loadSessions();
+      const label = productType.charAt(0).toUpperCase() + productType.slice(1);
+      sendMessage(session.id, `I'd like to create a ${label} supplement product. Can you help me with formulation and pricing?`);
+    } catch {
+      // sessionError state already set by useSession
+    }
   }, [createSession, sendMessage, loadSessions, resetChat]);
 
   const handleSendMessage = useCallback((message: string) => {
@@ -277,7 +285,16 @@ export default function App() {
         <div className="flex-1 flex overflow-hidden">
           {view === 'landing' ? (
             <div className="flex-1 flex items-center justify-center overflow-y-auto">
-              <IngredientGrid onSelectIngredient={handleSelectProductType} onStartChat={handleStartChat} />
+              <div className="w-full">
+                {sessionError && (
+                  <div className="max-w-lg mx-auto px-6 mb-4">
+                    <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+                      {sessionError}
+                    </div>
+                  </div>
+                )}
+                <IngredientGrid onSelectIngredient={handleSelectProductType} onStartChat={handleStartChat} />
+              </div>
             </div>
           ) : (
             <>
