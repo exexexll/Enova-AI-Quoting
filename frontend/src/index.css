@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+}
+
+/* Thinking block styling */
+.thinking-block {
+  background: #f3f4f6;
+  border-left: 3px solid #9ca3af;
+  padding: 8px 12px;
+  margin: 4px 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.thinking-block.collapsed {
+  max-height: 24px;
+  overflow: hidden;
+}
+
+.thinking-block.collapsed::after {
+  content: '...';
+  color: #9ca3af;
+}
+
+/* Rolling animation for ingredient showcase */
+.ingredient-roll-container {
+  overflow: hidden;
+  position: relative;
+}
+.ingredient-roll-track {
+  transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}

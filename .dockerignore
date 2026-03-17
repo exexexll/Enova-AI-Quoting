@@ -1,0 +1,12 @@
+frontend/
+admin/
+node_modules/
+.venv/
+venv/
+__pycache__/
+data/
+*.db
+.git/
+.env
+*.md
+.DS_Store
