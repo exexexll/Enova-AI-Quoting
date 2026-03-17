@@ -463,13 +463,13 @@ async def api_list_sample_orders():
 
 # ==================== EXPORT ====================
 
-@app.post("/api/sessions/{session_id}/export/sample")
+@app.api_route("/api/sessions/{session_id}/export/sample", methods=["GET", "POST"])
 async def api_export_sample(session_id: str, notes: str = ""):
     path = export_sample_request(session_id, notes)
     return FileResponse(path, filename=Path(path).name)
 
 
-@app.post("/api/sessions/{session_id}/export/record")
+@app.api_route("/api/sessions/{session_id}/export/record", methods=["GET", "POST"])
 async def api_export_record(session_id: str):
     path = export_client_record(session_id)
     return FileResponse(path, filename=Path(path).name)
