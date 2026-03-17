@@ -225,15 +225,15 @@ export default function App() {
     const charCount: number = data.extracted_length || 0;
 
     if (extracted && charCount > 0 && !extracted.startsWith('[')) {
-      return `[File: ${file.name}]\n\nExtracted content from the uploaded file:\n\n${extracted}\n\nPlease analyze this data and identify all relevant supplement information (ingredients, dosages, formulation, pricing, specs).`;
+      return `[File: ${file.name}]\n\nThe system extracted the following content from my uploaded file. Please:\n1. Parse ALL product info, client info, and ingredients from this data\n2. Auto-fill everything into the session using update_session_info\n3. Search each ingredient in the database\n4. Advance the workflow as far as the data allows\n5. Show me a structured summary of what was extracted and what's still needed\n\n---\n${extracted}\n---`;
     }
     const isImage = file.type.startsWith('image/');
     const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
     const isPdf = file.name.endsWith('.pdf');
-    if (isImage) return `[File: ${file.name}]\n\nI've uploaded an image. Please analyze it for any supplement formulation, label, or ingredient information.`;
-    if (isExcel) return `[File: ${file.name}]\n\nI've uploaded an Excel file. Please extract ingredient lists, pricing, or formulation data.`;
-    if (isPdf) return `[File: ${file.name}]\n\nI've uploaded a PDF. Please extract product specifications, formulas, or pricing information.`;
-    return `[File: ${file.name}]\n\nI've uploaded a file. Please analyze it and extract any relevant product information.`;
+    if (isImage) return `[File: ${file.name}]\n\nI've uploaded an image (label, spec sheet, or formulation). Please analyze it, extract all product and ingredient data, auto-fill the session, and advance the workflow.`;
+    if (isExcel) return `[File: ${file.name}]\n\nI've uploaded an Excel file. Please extract all ingredient lists, formulation data, and pricing. Auto-fill everything and advance the workflow.`;
+    if (isPdf) return `[File: ${file.name}]\n\nI've uploaded a PDF (spec sheet, MFSO, or formulation). Please extract all product specs, ingredients, client info, and pricing. Auto-fill everything and advance the workflow.`;
+    return `[File: ${file.name}]\n\nI've uploaded a file. Please extract all relevant data, auto-fill the session, and advance the workflow.`;
   }, []);
 
   const handleLandingFileUpload = useCallback(async (file: File) => {
