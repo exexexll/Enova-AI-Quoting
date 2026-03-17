@@ -19,7 +19,7 @@ function EstimatedPrice({ name }: { name: string }) {
       .catch(() => {});
   }, [name, loaded]);
 
-  if (!range) return <span className="text-gray-300">—</span>;
+  if (!range) return <span className="text-gray-400 text-[11px] italic">Pending</span>;
 
   const tooltip = range.source === 'web'
     ? `Web: ${range.notes || 'bulk pricing'}`

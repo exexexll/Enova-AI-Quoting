@@ -38,11 +38,11 @@ function shuffle<T>(a: T[]): T[] {
   return b;
 }
 
-function getCost(ing: Ingredient): { text: string; hasPrice: boolean; estimateText?: string } {
+function getCost(ing: Ingredient): { text: string; hasPrice: boolean } {
   if (ing.sum_cavg > 0) return { text: `$${ing.sum_cavg.toFixed(4)}/${ing.uom}`, hasPrice: true };
   if (ing.cost_kg > 0) return { text: `$${ing.cost_kg.toFixed(2)}/kg`, hasPrice: true };
   if (ing.price_per_kg != null && ing.price_per_kg > 0) return { text: `$${ing.price_per_kg.toFixed(2)}/kg`, hasPrice: true };
-  return { text: 'Price not set', hasPrice: false };
+  return { text: '', hasPrice: false };
 }
 
 function EstimatedRange({ ingredientName }: { ingredientName: string }) {
@@ -66,7 +66,7 @@ function EstimatedRange({ ingredientName }: { ingredientName: string }) {
   }, [ingredientName, loaded]);
 
   if (loading) return <span className="text-[10px] text-gray-300 italic whitespace-nowrap">Looking up...</span>;
-  if (!range) return <span className="text-[11px] text-gray-400 italic whitespace-nowrap">No estimate</span>;
+  if (!range) return <span className="text-[11px] text-gray-400 italic whitespace-nowrap">Pending</span>;
 
   const tooltip = range.source === 'web'
     ? `Web search: ${range.notes || 'bulk/wholesale pricing'}`
@@ -208,10 +208,11 @@ export default function IngredientPopup({ isOpen, onClose, onSelect, preSearch, 
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="bg-gray-50 rounded-xl p-3">
                 <div className="text-[10px] text-gray-400">Cost</div>
-                <div className={`text-sm font-semibold ${cost.hasPrice ? 'text-green-600' : 'text-amber-500'}`}>
-                  {cost.text}
-                </div>
-                {!cost.hasPrice && <EstimatedRange ingredientName={i.item_name} />}
+                {cost.hasPrice ? (
+                  <div className="text-sm font-semibold text-green-600">{cost.text}</div>
+                ) : (
+                  <EstimatedRange ingredientName={i.item_name} />
+                )}
               </div>
               <div className="bg-gray-50 rounded-xl p-3">
                 <div className="text-[10px] text-gray-400">Stock</div>
@@ -289,7 +290,7 @@ export default function IngredientPopup({ isOpen, onClose, onSelect, preSearch, 
                       className="bg-gray-50 hover:bg-blue-50 rounded-xl p-3 text-left transition-colors">
                       <div className="text-[13px] font-medium text-gray-800 truncate">{it.item_name}</div>
                       <div className="text-[11px] text-gray-400 mt-0.5 truncate">
-                        {it.supplier || it.source_tab} · <span className={c.hasPrice ? 'text-green-600' : 'text-amber-500'}>{c.text}</span>
+                        {it.supplier || it.source_tab} · {c.hasPrice ? <span className="text-green-600">{c.text}</span> : <EstimatedRange ingredientName={it.item_name} />}
                       </div>
                     </button>
                   );
