@@ -46,30 +46,38 @@ function getCost(ing: Ingredient): { text: string; hasPrice: boolean; estimateTe
 }
 
 function EstimatedRange({ ingredientName }: { ingredientName: string }) {
-  const [range, setRange] = useState<{ low: number; high: number; items: string[] } | null>(null);
+  const [range, setRange] = useState<{ low: number; high: number; source: string; notes?: string; items: string[] } | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (loaded) return;
     setLoaded(true);
+    setLoading(true);
     fetch(`${API_BASE}/api/ingredients/estimate?name=${encodeURIComponent(ingredientName)}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data && data.est_low && data.est_high) {
-          setRange({ low: data.est_low, high: data.est_high, items: data.similar_items || [] });
+          setRange({ low: data.est_low, high: data.est_high, source: data.source || 'est', notes: data.notes, items: data.similar_items || [] });
         }
+        setLoading(false);
       })
-      .catch(() => {});
+      .catch(() => setLoading(false));
   }, [ingredientName, loaded]);
 
+  if (loading) return <span className="text-[10px] text-gray-300 italic whitespace-nowrap">Looking up...</span>;
   if (!range) return <span className="text-[11px] text-gray-400 italic whitespace-nowrap">No estimate</span>;
 
+  const tooltip = range.source === 'web'
+    ? `Web search: ${range.notes || 'bulk/wholesale pricing'}`
+    : `DB similar: ${range.items.slice(0, 3).join(', ')}`;
+
   return (
-    <div className="text-right" title={`Est. from: ${range.items.slice(0, 3).join(', ')}`}>
+    <div className="text-right" title={tooltip}>
       <div className="text-[11px] text-amber-600 font-medium whitespace-nowrap">
         ~${(range.low * 1000).toFixed(2)}–${(range.high * 1000).toFixed(2)}/kg
       </div>
-      <div className="text-[9px] text-gray-400">estimated</div>
+      <div className="text-[9px] text-gray-400">{range.source === 'web' ? '🌐 web price' : 'estimated'}</div>
     </div>
   );
 }

@@ -177,16 +177,36 @@ async def api_chat(req: ChatRequest):
 
 @app.get("/api/ingredients/estimate")
 async def api_ingredient_estimate(name: str):
-    """Get estimated price range for an ingredient based on similar items."""
+    """Get estimated price range for an ingredient.
+
+    Tries DB similarity first; falls back to web search if no good match.
+    """
     similar_items, est_low, est_high = hybrid_search_similar(name)
+
     if est_low is not None and est_high is not None:
+        spread = est_high / est_low if est_low > 0 else 999
+        if spread < 5:
+            return {
+                "name": name,
+                "est_low": round(est_low, 6),
+                "est_high": round(est_high, 6),
+                "source": "database",
+                "similar_items": [s.item_name for s in similar_items[:5]],
+            }
+
+    from backend.services.price_search import search_ingredient_price
+    web_result = search_ingredient_price(name)
+    if web_result.get("est_low") and web_result.get("est_high"):
         return {
             "name": name,
-            "est_low": round(est_low, 6),
-            "est_high": round(est_high, 6),
-            "similar_items": [s.item_name for s in similar_items[:5]],
+            "est_low": web_result["est_low"],
+            "est_high": web_result["est_high"],
+            "source": "web",
+            "notes": web_result.get("notes", ""),
+            "similar_items": [],
         }
-    return {"name": name, "est_low": None, "est_high": None, "similar_items": []}
+
+    return {"name": name, "est_low": None, "est_high": None, "source": None, "similar_items": []}
 
 
 @app.get("/api/ingredients/sources")

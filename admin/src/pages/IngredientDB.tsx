@@ -3,7 +3,7 @@ import { API_BASE as API } from '../config';
 import type { Ingredient } from '../types';
 
 function EstimatedPrice({ name }: { name: string }) {
-  const [range, setRange] = useState<{ low: number; high: number; items: string[] } | null>(null);
+  const [range, setRange] = useState<{ low: number; high: number; source: string; notes?: string; items: string[] } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -13,7 +13,7 @@ function EstimatedPrice({ name }: { name: string }) {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data && data.est_low && data.est_high) {
-          setRange({ low: data.est_low, high: data.est_high, items: data.similar_items || [] });
+          setRange({ low: data.est_low, high: data.est_high, source: data.source || 'est', notes: data.notes, items: data.similar_items || [] });
         }
       })
       .catch(() => {});
@@ -21,9 +21,14 @@ function EstimatedPrice({ name }: { name: string }) {
 
   if (!range) return <span className="text-gray-300">—</span>;
 
+  const tooltip = range.source === 'web'
+    ? `Web: ${range.notes || 'bulk pricing'}`
+    : `Similar: ${range.items.slice(0, 3).join(', ')}`;
+
   return (
-    <span className="text-amber-600" title={`Est. from: ${range.items.slice(0, 3).join(', ')}`}>
+    <span className="text-amber-600" title={tooltip}>
       ~${(range.low * 1000).toFixed(2)}–${(range.high * 1000).toFixed(2)}/kg
+      {range.source === 'web' && <span className="ml-1 text-[9px]">🌐</span>}
     </span>
   );
 }
