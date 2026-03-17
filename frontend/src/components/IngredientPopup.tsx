@@ -62,16 +62,14 @@ function EstimatedRange({ ingredientName }: { ingredientName: string }) {
       .catch(() => {});
   }, [ingredientName, loaded]);
 
-  if (!range) return <span className="text-[11px] text-gray-400 italic">No estimate available</span>;
+  if (!range) return <span className="text-[11px] text-gray-400 italic whitespace-nowrap">No estimate</span>;
 
   return (
-    <div>
-      <span className="text-[12px] text-amber-600 font-medium">
-        ~${(range.low * 1000).toFixed(2)} – ${(range.high * 1000).toFixed(2)}/kg
-      </span>
-      <div className="text-[10px] text-gray-400 mt-0.5">
-        Est. from: {range.items.slice(0, 3).join(', ')}
+    <div className="text-right" title={`Est. from: ${range.items.slice(0, 3).join(', ')}`}>
+      <div className="text-[11px] text-amber-600 font-medium whitespace-nowrap">
+        ~${(range.low * 1000).toFixed(2)}–${(range.high * 1000).toFixed(2)}/kg
       </div>
+      <div className="text-[9px] text-gray-400">estimated</div>
     </div>
   );
 }
@@ -310,23 +308,23 @@ export default function IngredientPopup({ isOpen, onClose, onSelect, preSearch, 
                         {it.on_hand > 0 && ` · ${it.on_hand.toLocaleString()} in stock`}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                       {c.hasPrice ? (
-                        <span className="text-[12px] font-medium text-green-600">{c.text}</span>
+                        <span className="text-[11px] font-medium text-green-600 whitespace-nowrap">{c.text}</span>
                       ) : (
                         <EstimatedRange ingredientName={it.item_name} />
                       )}
                       {!c.hasPrice && !inquireSent.has(it.id) && (
                         <button onClick={e => { e.stopPropagation(); inquirePrice(r); }}
-                          className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded hover:bg-amber-100">
+                          className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded hover:bg-amber-100 whitespace-nowrap">
                           Inquire
                         </button>
                       )}
                       {inquireSent.has(it.id) && (
-                        <span className="text-[10px] text-green-500">Sent</span>
+                        <span className="text-[10px] text-green-500">✓</span>
                       )}
                       <button onClick={e => { e.stopPropagation(); setExpandedItem(r); }}
-                        className="text-[11px] text-blue-500 hover:text-blue-700">
+                        className="text-[11px] text-blue-500 hover:text-blue-700 whitespace-nowrap">
                         View
                       </button>
                     </div>
