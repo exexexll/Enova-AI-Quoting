@@ -213,6 +213,27 @@ export default function App() {
     loadSessions();
   }, [resetChat, clearSession, loadSessions]);
 
+  const handleLandingFileUpload = useCallback(async (file: File) => {
+    resetChat();
+    try {
+      const session = await createSession();
+      setView('chat');
+      loadSessions();
+      const formData = new FormData();
+      formData.append('file', file);
+      await fetch(`${API_BASE}/api/sessions/${session.id}/upload`, {
+        method: 'POST', body: formData,
+      });
+      const isImage = file.type.startsWith('image/');
+      const msg = isImage
+        ? `I've uploaded an image: ${file.name}. Please analyze it for any supplement formulation, label, or ingredient information.`
+        : `I've uploaded a file: ${file.name}. Please extract any relevant product specifications or ingredient data.`;
+      sendMessage(session.id, msg);
+    } catch {
+      // sessionError will show
+    }
+  }, [createSession, sendMessage, loadSessions, resetChat]);
+
   const handleFileUpload = useCallback(async (file: File) => {
     if (!currentSession) return;
     const formData = new FormData();
@@ -307,7 +328,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                <IngredientGrid onSelectIngredient={handleSelectProductType} onStartChat={handleStartChat} />
+                <IngredientGrid onSelectIngredient={handleSelectProductType} onStartChat={handleStartChat} onFileUpload={handleLandingFileUpload} />
               </div>
             </div>
           ) : (
