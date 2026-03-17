@@ -18,6 +18,8 @@ def get_session(session_id: str) -> Optional[SessionOut]:
         client_name=row["client_name"],
         client_email=row["client_email"],
         client_company=row["client_company"],
+        client_phone=row["client_phone"],
+        client_address=row["client_address"],
         status=row["status"],
         workflow_state=row["workflow_state"],
         contract_status=row["contract_status"],
@@ -41,7 +43,8 @@ def list_sessions(status: str | None = None, limit: int = 50) -> list[SessionOut
     return [
         SessionOut(
             id=r["id"], client_name=r["client_name"], client_email=r["client_email"],
-            client_company=r["client_company"], status=r["status"],
+            client_company=r["client_company"], client_phone=r["client_phone"],
+            client_address=r["client_address"], status=r["status"],
             workflow_state=r["workflow_state"], contract_status=r["contract_status"],
             created_at=r["created_at"], updated_at=r["updated_at"],
         )

@@ -67,14 +67,17 @@ def _to_pg(sql: str) -> str:
     s = "".join(out)
 
     # INSERT OR IGNORE → INSERT … ON CONFLICT DO NOTHING
-    if re.search(r"INSERT\s+OR\s+IGNORE\s+INTO", s, re.IGNORECASE):
+    if re.search(r"INSERT\s+OR\s+IGNORE\s+INTO\s+(\w+)", s, re.IGNORECASE):
+        table_match = re.search(r"INSERT\s+OR\s+IGNORE\s+INTO\s+(\w+)", s, re.IGNORECASE)
+        table_name = table_match.group(1) if table_match else ""
         s = re.sub(
             r"INSERT\s+OR\s+IGNORE\s+INTO",
             "INSERT INTO",
             s,
             flags=re.IGNORECASE,
         )
-        s = s.rstrip().rstrip(";") + " ON CONFLICT DO NOTHING"
+        conflict_col = {"pricing_config": "(key)"}.get(table_name, "")
+        s = s.rstrip().rstrip(";") + f" ON CONFLICT {conflict_col} DO NOTHING"
 
     return s
 

@@ -53,6 +53,8 @@ class SessionOut(BaseModel):
     client_name: Optional[str] = None
     client_email: Optional[str] = None
     client_company: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_address: Optional[str] = None
     status: str = "active"
     workflow_state: str = "intake"
     contract_status: Optional[str] = None

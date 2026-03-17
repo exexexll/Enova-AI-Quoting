@@ -323,10 +323,15 @@ async def api_list_session_files(session_id: str):
 @app.get("/api/escalations", response_model=list[EscalationOut])
 async def api_list_escalations(status: str = "pending"):
     with get_db() as conn:
-        rows = conn.execute(
-            "SELECT * FROM escalation_queue WHERE status=? ORDER BY created_at DESC",
-            (status,),
-        ).fetchall()
+        if status == "all":
+            rows = conn.execute(
+                "SELECT * FROM escalation_queue ORDER BY created_at DESC"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM escalation_queue WHERE status=? ORDER BY created_at DESC",
+                (status,),
+            ).fetchall()
     return [
         EscalationOut(
             id=r["id"], session_id=r["session_id"], client_name=r["client_name"],
@@ -349,12 +354,12 @@ async def api_create_escalation(req: EscalationCreate):
         if session:
             client_name = session.get("client_name") if isinstance(session, dict) else getattr(session, "client_name", None)
     with get_db() as conn:
-        cursor = conn.execute(
+        esc_id = conn.execute_returning_id(
             """INSERT INTO escalation_queue (session_id, client_name, item_requested, source, quantity_needed, similar_items)
                VALUES (?,?,?,?,?,?)""",
             (req.session_id, client_name, req.item_requested, req.source, req.quantity_needed, req.similar_items),
         )
-        row = conn.execute("SELECT * FROM escalation_queue WHERE id=?", (cursor.lastrowid,)).fetchone()
+        row = conn.execute("SELECT * FROM escalation_queue WHERE id=?", (esc_id,)).fetchone()
     return EscalationOut(
         id=row["id"], session_id=row["session_id"], client_name=row["client_name"],
         item_requested=row["item_requested"], source=row["source"],
