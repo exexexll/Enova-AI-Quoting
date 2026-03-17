@@ -78,7 +78,7 @@ const STATE_SUGGESTIONS: Record<string, string[]> = {
 };
 
 // Dynamic suggestions based on what the AI last said
-function getContextualSuggestions(lastMsg: string, state: string): string[] {
+function getContextualSuggestions(lastMsg: string, _state: string): string[] {
   const lower = lastMsg.toLowerCase();
   const suggestions: string[] = [];
 
