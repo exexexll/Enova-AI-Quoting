@@ -10,7 +10,9 @@ COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./backend/
-COPY "Ingredient Master(条包模板） 2.xlsx" ./
+# Ingredient Master Excel: add to repo as ingredient-master.xlsx and uncomment below,
+# or set INGREDIENT_MASTER_PATH in env to a path on a mounted volume.
+# COPY ingredient-master.xlsx ./
 
 RUN mkdir -p data
 
