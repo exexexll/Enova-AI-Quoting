@@ -213,52 +213,46 @@ export default function App() {
     loadSessions();
   }, [resetChat, clearSession, loadSessions]);
 
+  const _uploadAndExtract = useCallback(async (sessionId: string, file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const resp = await fetch(`${API_BASE}/api/sessions/${sessionId}/upload`, {
+      method: 'POST', body: formData,
+    });
+    if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
+    const data = await resp.json();
+    const extracted: string = data.extracted || '';
+    const charCount: number = data.extracted_length || 0;
+
+    if (extracted && charCount > 0) {
+      return `I've uploaded **${file.name}**. The system extracted the following content (${charCount} chars):\n\n---\n${extracted}\n---\n\nPlease analyze this data and identify all relevant supplement information (ingredients, dosages, formulation, pricing, specs).`;
+    }
+    return `I've uploaded **${file.name}**. Please analyze it and extract any relevant product information.`;
+  }, []);
+
   const handleLandingFileUpload = useCallback(async (file: File) => {
     resetChat();
     try {
       const session = await createSession();
       setView('chat');
       loadSessions();
-      const formData = new FormData();
-      formData.append('file', file);
-      await fetch(`${API_BASE}/api/sessions/${session.id}/upload`, {
-        method: 'POST', body: formData,
-      });
-      const isImage = file.type.startsWith('image/');
-      const msg = isImage
-        ? `I've uploaded an image: ${file.name}. Please analyze it for any supplement formulation, label, or ingredient information.`
-        : `I've uploaded a file: ${file.name}. Please extract any relevant product specifications or ingredient data.`;
+      const msg = await _uploadAndExtract(session.id, file);
       sendMessage(session.id, msg);
     } catch {
       // sessionError will show
     }
-  }, [createSession, sendMessage, loadSessions, resetChat]);
+  }, [createSession, sendMessage, loadSessions, resetChat, _uploadAndExtract]);
 
   const handleFileUpload = useCallback(async (file: File) => {
     if (!currentSession) return;
-    const formData = new FormData();
-    formData.append('file', file);
     try {
-      const resp = await fetch(`${API_BASE}/api/sessions/${currentSession.id}/upload`, {
-        method: 'POST', body: formData,
-      });
-      if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
-      const isImage = file.type.startsWith('image/');
-      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
-      const isPdf = file.name.endsWith('.pdf');
-      const description = isImage
-        ? `I've uploaded an image: ${file.name}. Please analyze it for any supplement formulation, label, or ingredient information.`
-        : isExcel
-          ? `I've uploaded an Excel file: ${file.name}. Please extract ingredient lists, pricing, or formulation data from it.`
-          : isPdf
-            ? `I've uploaded a PDF: ${file.name}. Please extract any relevant product specifications, formulas, or pricing information.`
-            : `I've uploaded a file: ${file.name}. Please analyze it and extract any relevant product information.`;
-      sendMessage(currentSession.id, description);
+      const msg = await _uploadAndExtract(currentSession.id, file);
+      sendMessage(currentSession.id, msg);
     } catch (err) {
       console.error('Upload failed:', err);
       sendMessage(currentSession.id, `I tried to upload ${file.name} but the upload failed. Can we continue without it?`);
     }
-  }, [currentSession, sendMessage]);
+  }, [currentSession, sendMessage, _uploadAndExtract]);
 
   const handleReviewContract = useCallback(async () => {
     if (!currentSession) return;

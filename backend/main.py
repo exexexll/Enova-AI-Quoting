@@ -222,14 +222,23 @@ async def api_upload_file(session_id: str, file: UploadFile = File(...)):
         content = await file.read()
         await f.write(content)
 
+    from backend.services.file_extraction import extract_file_content
+    extracted = extract_file_content(str(filepath), file.content_type)
+
     with get_db() as conn:
         file_id = conn.execute_returning_id(
-            """INSERT INTO client_files (session_id, filename, content_type, file_path)
-               VALUES (?,?,?,?)""",
-            (session_id, file.filename, file.content_type, str(filepath)),
+            """INSERT INTO client_files (session_id, filename, content_type, file_path, extraction_json)
+               VALUES (?,?,?,?,?)""",
+            (session_id, file.filename, file.content_type, str(filepath), extracted or None),
         )
 
-    return {"id": file_id, "filename": file.filename, "path": str(filepath)}
+    return {
+        "id": file_id,
+        "filename": file.filename,
+        "path": str(filepath),
+        "extracted": extracted[:500] if extracted else None,
+        "extracted_length": len(extracted) if extracted else 0,
+    }
 
 
 @app.get("/api/sessions/{session_id}/files")
