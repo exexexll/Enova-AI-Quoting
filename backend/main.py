@@ -84,11 +84,20 @@ async def lifespan(application: FastAPI):
 
 app = FastAPI(title="Enova AI Quoting System", version="1.0.0", lifespan=lifespan)
 
-_cors_origins = [o.strip() for o in CORS_ORIGINS.split(",") if o.strip()]
+_KNOWN_ORIGINS = [
+    "https://enova-ai-quoting-dcsp.vercel.app",
+    "https://enova-ai-quoting-3wba.vercel.app",
+    "https://officallol.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
+_env_origins = [o.strip() for o in CORS_ORIGINS.split(",") if o.strip()] if CORS_ORIGINS else []
+_cors_origins = list(set(_env_origins + _KNOWN_ORIGINS)) if CORS_ORIGINS != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=CORS_ORIGINS != "*",
+    allow_credentials="*" not in _cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
