@@ -1,14 +1,183 @@
-"""SQLite database models and connection management."""
+"""Database connection management.
+
+Supports **SQLite** (local dev) and **PostgreSQL** (production).
+Set ``DATABASE_URL`` env var to use PostgreSQL; without it, the app
+falls back to SQLite at ``DB_PATH``.
+"""
 from __future__ import annotations
 
-import json
+import logging
+import os
+import re
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from backend.config import DB_PATH
+
+logger = logging.getLogger(__name__)
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+_USE_PG = bool(DATABASE_URL)
+
+if _USE_PG:
+    import psycopg2
+    import psycopg2.extras
+
+# ---------------------------------------------------------------------------
+# SQL dialect translation  (SQLite → PostgreSQL)
+# ---------------------------------------------------------------------------
+
+def _to_pg(sql: str) -> str:
+    """Translate a single SQLite-dialect SQL statement to PostgreSQL."""
+    s = sql.strip()
+    if not s:
+        return ""
+    if s.upper().startswith("PRAGMA"):
+        return ""
+
+    # DDL translations
+    s = re.sub(
+        r"INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT",
+        "SERIAL PRIMARY KEY",
+        s,
+        flags=re.IGNORECASE,
+    )
+    s = re.sub(r"\bBLOB\b", "BYTEA", s)
+    s = s.replace(
+        "REFERENCES ingredients(id)",
+        "REFERENCES ingredients(id) ON DELETE SET NULL",
+    )
+
+    # Timestamp default & expression
+    s = s.replace("datetime('now')", "NOW()::TEXT")
+
+    # Parameter placeholders: ? → %s  (skip inside string literals)
+    out: list[str] = []
+    in_str = False
+    for ch in s:
+        if ch == "'":
+            in_str = not in_str
+        if ch == "?" and not in_str:
+            out.append("%s")
+        else:
+            out.append(ch)
+    s = "".join(out)
+
+    # INSERT OR IGNORE → INSERT … ON CONFLICT DO NOTHING
+    if re.search(r"INSERT\s+OR\s+IGNORE\s+INTO", s, re.IGNORECASE):
+        s = re.sub(
+            r"INSERT\s+OR\s+IGNORE\s+INTO",
+            "INSERT INTO",
+            s,
+            flags=re.IGNORECASE,
+        )
+        s = s.rstrip().rstrip(";") + " ON CONFLICT DO NOTHING"
+
+    return s
+
+
+# ---------------------------------------------------------------------------
+# Cursor / connection wrappers
+# ---------------------------------------------------------------------------
+
+class _NoOpCursor:
+    """Returned for skipped statements (e.g. PRAGMAs on PostgreSQL)."""
+    lastrowid: int | None = None
+    def fetchone(self) -> None:
+        return None
+    def fetchall(self) -> list:
+        return []
+
+
+class _PGCursorProxy:
+    """Wraps a psycopg2 cursor to provide sqlite3-like fetchone/fetchall."""
+    def __init__(self, cursor: Any):
+        self._cur = cursor
+        self.lastrowid: int | None = None
+
+    def fetchone(self) -> dict[str, Any] | None:
+        try:
+            row = self._cur.fetchone()
+            return dict(row) if row else None
+        except Exception:
+            return None
+
+    def fetchall(self) -> list[dict[str, Any]]:
+        try:
+            return [dict(r) for r in self._cur.fetchall()]
+        except Exception:
+            return []
+
+
+class _ConnWrapper:
+    """Unified connection interface for both backends."""
+
+    def __init__(self, raw_conn: Any, is_pg: bool):
+        self._conn = raw_conn
+        self._pg = is_pg
+
+    def execute(self, sql: str, params: Any = None) -> Any:
+        if self._pg:
+            translated = _to_pg(sql)
+            if not translated:
+                return _NoOpCursor()
+            cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(translated, tuple(params) if params else None)
+            return _PGCursorProxy(cur)
+        return self._conn.execute(sql, params or ())
+
+    def execute_returning_id(self, sql: str, params: Any = None) -> int | None:
+        """Execute an INSERT and return the generated ``id`` column."""
+        if self._pg:
+            translated = _to_pg(sql)
+            if not translated:
+                return None
+            translated = translated.rstrip().rstrip(";") + " RETURNING id"
+            cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(translated, tuple(params) if params else None)
+            row = cur.fetchone()
+            return row["id"] if row else None
+        cursor = self._conn.execute(sql, params or ())
+        return cursor.lastrowid
+
+    def executemany(self, sql: str, params_list: list[tuple]) -> None:
+        if self._pg:
+            translated = _to_pg(sql)
+            if not translated:
+                return
+            cur = self._conn.cursor()
+            psycopg2.extras.execute_batch(cur, translated, params_list)
+        else:
+            self._conn.executemany(sql, params_list)
+
+    def executescript(self, script: str) -> None:
+        """Execute a multi-statement SQL script (split on ``;``)."""
+        if self._pg:
+            for stmt in script.split(";"):
+                stmt = stmt.strip()
+                if not stmt:
+                    continue
+                translated = _to_pg(stmt)
+                if translated:
+                    cur = self._conn.cursor()
+                    cur.execute(translated)
+        else:
+            self._conn.executescript(script)
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+    def rollback(self) -> None:
+        self._conn.rollback()
+
+    def close(self) -> None:
+        self._conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Schema (written in SQLite dialect — auto-translated for PostgreSQL)
+# ---------------------------------------------------------------------------
 
 _CREATE_TABLES = """
 -- ==================== INGREDIENTS ====================
@@ -19,7 +188,7 @@ CREATE TABLE IF NOT EXISTS ingredients (
     item_id         TEXT,
     supplier        TEXT,
     location        TEXT,
-    uom             TEXT,          -- gm, ea, kg
+    uom             TEXT,
     c_last          REAL DEFAULT 0,
     safety_stock    REAL DEFAULT 0,
     on_hand         REAL DEFAULT 0,
@@ -27,9 +196,8 @@ CREATE TABLE IF NOT EXISTS ingredients (
     sum_ss_cost     REAL DEFAULT 0,
     cost_kg         REAL DEFAULT 0,
     supplier_code   TEXT,
-    source_tab      TEXT NOT NULL,  -- 'enova_data', 'master', 'uaa_us', etc.
-    category        TEXT,           -- ALT-RP, ALT-CP, ALT-BT, etc. (derived)
-    -- Master-tab specific fields
+    source_tab      TEXT NOT NULL,
+    category        TEXT,
     chinese_name    TEXT,
     potency         TEXT,
     form            TEXT,
@@ -37,9 +205,8 @@ CREATE TABLE IF NOT EXISTS ingredients (
     warehouse       TEXT,
     moq_kg          REAL,
     price_per_kg    REAL,
-    -- Embedding
     embedding       BLOB,
-    needs_manual_price INTEGER DEFAULT 0,  -- 1 if all cost cols = 0
+    needs_manual_price INTEGER DEFAULT 0,
     created_at      TEXT DEFAULT (datetime('now')),
     updated_at      TEXT DEFAULT (datetime('now'))
 );
@@ -58,10 +225,10 @@ CREATE TABLE IF NOT EXISTS sessions (
     client_company  TEXT,
     client_phone    TEXT,
     client_address  TEXT,
-    status          TEXT DEFAULT 'active',  -- active, paused, completed, abandoned
-    workflow_state  TEXT DEFAULT 'intake',  -- intake, ingredient_selection, pricing, contract, etc.
+    status          TEXT DEFAULT 'active',
+    workflow_state  TEXT DEFAULT 'intake',
     context_json    TEXT DEFAULT '{}',
-    contract_status TEXT,                   -- NULL, draft, under_review, submitted, accepted, revision
+    contract_status TEXT,
     created_at      TEXT DEFAULT (datetime('now')),
     updated_at      TEXT DEFAULT (datetime('now'))
 );
@@ -72,8 +239,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id      TEXT NOT NULL REFERENCES sessions(id),
     timestamp       TEXT DEFAULT (datetime('now')),
-    role            TEXT NOT NULL,   -- user, assistant, system, tool
-    phase           TEXT,            -- thinking, executing, tool_call, tool_result
+    role            TEXT NOT NULL,
+    phase           TEXT,
     content         TEXT,
     metadata_json   TEXT,
     FOREIGN KEY (session_id) REFERENCES sessions(id)
@@ -92,11 +259,11 @@ CREATE TABLE IF NOT EXISTS session_ingredients (
     label_claim     TEXT,
     uom             TEXT,
     unit_cost       REAL,
-    cost_source     TEXT,           -- enova_data, master, estimated, manual
-    confidence      TEXT,           -- HIGH, MEDIUM, NONE (internal only)
+    cost_source     TEXT,
+    confidence      TEXT,
     est_low         REAL,
     est_high        REAL,
-    similar_items   TEXT,           -- JSON list of similar item names used for estimation
+    similar_items   TEXT,
     created_at      TEXT DEFAULT (datetime('now'))
 );
 
@@ -118,9 +285,9 @@ CREATE TABLE IF NOT EXISTS contracts (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id      TEXT NOT NULL REFERENCES sessions(id),
     version         INTEGER DEFAULT 1,
-    status          TEXT DEFAULT 'draft',  -- draft, under_review, submitted, accepted, revision
+    status          TEXT DEFAULT 'draft',
     pdf_path        TEXT,
-    data_json       TEXT,                  -- All MFSO fields as JSON
+    data_json       TEXT,
     client_name_sig TEXT,
     client_comments TEXT,
     admin_notes     TEXT,
@@ -137,12 +304,12 @@ CREATE TABLE IF NOT EXISTS escalation_queue (
     session_id      TEXT NOT NULL REFERENCES sessions(id),
     client_name     TEXT,
     item_requested  TEXT NOT NULL,
-    source          TEXT NOT NULL,   -- 'missing' or '$0-cost'
+    source          TEXT NOT NULL,
     quantity_needed TEXT,
-    similar_items   TEXT,            -- JSON
+    similar_items   TEXT,
     est_low         REAL,
     est_high        REAL,
-    status          TEXT DEFAULT 'pending',  -- pending, resolved, cancelled
+    status          TEXT DEFAULT 'pending',
     confirmed_price REAL,
     admin_notes     TEXT,
     resolved_at     TEXT,
@@ -209,7 +376,7 @@ CREATE TABLE IF NOT EXISTS transport_rates (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     carrier         TEXT NOT NULL,
     service_level   TEXT,
-    rate_type       TEXT NOT NULL,   -- per_lb, per_kg, per_cbm, per_mile, flat
+    rate_type       TEXT NOT NULL,
     rate_value      REAL NOT NULL,
     weight_min_lbs  REAL DEFAULT 0,
     weight_max_lbs  REAL,
@@ -245,8 +412,8 @@ CREATE TABLE IF NOT EXISTS quotes (
     total_high            REAL,
     margin_pct            REAL,
     breakdown_json        TEXT,
-    warnings_json         TEXT,      -- MEDIUM confidence items
-    blockers_json         TEXT,      -- NONE confidence items
+    warnings_json         TEXT,
+    blockers_json         TEXT,
     created_at            TEXT DEFAULT (datetime('now'))
 );
 """
@@ -271,38 +438,46 @@ INSERT OR IGNORE INTO pricing_config (key, value, description) VALUES
 """
 
 
-def get_connection() -> sqlite3.Connection:
-    """Get a new SQLite connection with WAL mode."""
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def _raw_connection() -> _ConnWrapper:
+    if _USE_PG:
+        conn = psycopg2.connect(DATABASE_URL)
+        return _ConnWrapper(conn, is_pg=True)
+
     conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.row_factory = sqlite3.Row
-    return conn
+    return _ConnWrapper(conn, is_pg=False)
 
 
 def init_db():
-    """Create all tables and insert default config."""
-    conn = get_connection()
+    """Create all tables and seed default config."""
+    wrapper = _raw_connection()
     try:
-        conn.executescript(_CREATE_TABLES)
-        conn.executescript(_INSERT_DEFAULT_CONFIG)
-        conn.commit()
+        wrapper.executescript(_CREATE_TABLES)
+        wrapper.executescript(_INSERT_DEFAULT_CONFIG)
+        wrapper.commit()
     finally:
-        conn.close()
+        wrapper.close()
+    logger.info("Database initialised (%s)", "PostgreSQL" if _USE_PG else "SQLite")
 
 
 @contextmanager
 def get_db():
-    """Context manager for database connections."""
-    conn = get_connection()
+    """Context manager yielding a connection wrapper (auto-commit on success)."""
+    wrapper = _raw_connection()
     try:
-        yield conn
-        conn.commit()
+        yield wrapper
+        wrapper.commit()
     except Exception:
-        conn.rollback()
+        wrapper.rollback()
         raise
     finally:
-        conn.close()
+        wrapper.close()
 
 
 # ==================== Helper functions ====================

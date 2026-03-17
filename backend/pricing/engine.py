@@ -156,7 +156,7 @@ def save_quote(session_id: str, breakdown: PricingBreakdown) -> int:
         ).fetchone()
         version = row["next_ver"]
 
-        cursor = conn.execute(
+        return conn.execute_returning_id(
             """INSERT INTO quotes (
                 session_id, version,
                 ingredient_cost_low, ingredient_cost_mid, ingredient_cost_high,
@@ -181,4 +181,3 @@ def save_quote(session_id: str, breakdown: PricingBreakdown) -> int:
                 json.dumps(breakdown.blockers),
             ),
         )
-        return cursor.lastrowid

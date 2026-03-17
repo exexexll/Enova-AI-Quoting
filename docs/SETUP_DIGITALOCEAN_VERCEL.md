@@ -70,22 +70,48 @@ Use a **Personal Access Token** or **SSH** if GitHub asks for authentication.
 
 ### Step 1.4: Environment variables
 
-In the same component, open **Environment Variables** and add:
+On the **Settings** page, find **App-Level Environment Variables** (or open the **enova-ai-quoting** component and use its **Environment Variables**). Click **Edit** or **Add Variable** and add:
 
 | Name | Value | Encrypt? |
 |------|--------|----------|
-| `OPENAI_API_KEY` | Your OpenAI API key | Yes |
-| `SERPAPI_KEY` | (Optional) SerpAPI key for image search | Yes (if used) |
-| `DATA_DIR` | `/data` (if you add a volume; see Step 1.5) | No |
-| `CORS_ORIGINS` | Leave empty for now (or set after you have Vercel URLs) | No |
+| `OPENAI_API_KEY` | Your OpenAI API key | Yes (recommended) |
+| `SERPAPI_KEY` | (Optional) SerpAPI key for ingredient image search | Yes (if used) |
+| `DATA_DIR` | `/data` (only if you added a volume in Step 1.5) | No |
+| `CORS_ORIGINS` | Leave empty for now; set after Vercel deploy (Step 1.8) | No |
 
-Save.
+Save. The app will redeploy with the new variables.
 
 ### Step 1.5: Persistent storage (recommended)
 
-1. In the app spec, add a **Volume** to the backend component.
-2. Mount path: **/data**.
-3. In **Environment Variables**, set **DATA_DIR** = **/data** so SQLite DB, uploads, and exports persist across deploys.
+**How to add a Volume and DATA_DIR**
+
+1. **Open your app**  
+   In DigitalOcean: **Apps** → click your app (e.g. **enova-ai-quoting** or **orca-app**).
+
+2. **Edit the app spec**  
+   - Go to the **Settings** tab (or **Components** / **App Spec** depending on the UI).  
+   - If you see **Edit App Spec** or **Edit Plan**, click it so you can change the app definition.
+
+3. **Add a Volume to the backend component**  
+   - Find the **component** that runs your backend (e.g. **enova-ai-quoting**, type **Web Service**).  
+   - In that component’s config, look for **Volumes** or **Storage**.  
+   - Click **Add Volume** (or **Add Storage**).  
+   - **Mount path:** enter **`/data`** (this is the path inside the container where the disk will appear).  
+   - **Size:** e.g. 1 GB (you can increase later).  
+   - Save the volume.
+
+4. **Add the DATA_DIR env var**  
+   - In the same place you set **OPENAI_API_KEY** (App-Level Environment Variables or the backend component’s **Environment Variables**), click **Edit** or **Add Variable**.  
+   - Add:
+     - **Name:** `DATA_DIR`  
+     - **Value:** `/data`  
+   - Save. This tells the app to use the volume at `/data` for the DB, uploads, and exports.
+
+5. **Save and redeploy**  
+   - Save the app spec / settings.  
+   - DigitalOcean will redeploy. After that, data under `/data` (and thus in `DATA_DIR`) will persist across deploys.
+
+If you skip the volume, you can skip **DATA_DIR** too; the app will use its default path, but that data will be lost on the next deploy.
 
 ### Step 1.6: Deploy
 
@@ -208,7 +234,7 @@ After adding domains, update **CORS_ORIGINS** on the backend to include the new 
 
 | Issue | What to do |
 |-------|------------|
-| Backend build fails (Dockerfile) | The Dockerfile copies `Ingredient Master(条包模板） 2.xlsx` from the repo root. Either add that file to the repo, or remove that `COPY` line from the Dockerfile and set the env var `INGREDIENT_MASTER_PATH` in DigitalOcean to a path where the file is available (e.g. on a volume). |
+| Backend build fails (Dockerfile) | The Dockerfile no longer copies the Ingredient Master Excel (to avoid build errors from special characters). The app starts without it. To load ingredient data, set `INGREDIENT_MASTER_PATH` in DigitalOcean to a path where the file exists (e.g. on a volume), or add the file to the repo as `ingredient-master.xlsx` and uncomment the COPY line in the Dockerfile. |
 | 404 on API routes | Confirm the backend URL has no trailing slash and that `VITE_API_URL` matches exactly (no typo). |
 | CORS errors in browser | Set `CORS_ORIGINS` on DigitalOcean to your Vercel (and custom) origins, comma-separated, then redeploy. |
 | Client/Admin show “failed to fetch” | Check backend URL, CORS, and that the backend is running and `/api/health` returns 200. |

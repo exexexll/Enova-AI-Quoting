@@ -31,6 +31,9 @@ EMBEDDING_DIM = 1536
 INGREDIENT_MASTER_PATH = Path(os.getenv("INGREDIENT_MASTER_PATH", str(BASE_DIR / "Ingredient Master(条包模板） 2.xlsx")))
 MFSO_TEMPLATE_PATH = Path(os.getenv("MFSO_TEMPLATE_PATH", str(BASE_DIR / "MFSO P25267-V2 Red Ginseng Powder Capsules 180ct 12-18-25 Copy.pdf")))
 
+# PostgreSQL (production); leave unset for SQLite (local dev)
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+
 # SerpAPI (no default in production; set SERPAPI_KEY in env)
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
 

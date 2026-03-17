@@ -71,6 +71,17 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+async def root():
+    """Root: point to API docs and health."""
+    return {
+        "app": "Enova AI Quoting System",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/api/health",
+    }
+
+
 @app.get("/api/health")
 async def health_check():
     """Lightweight health check for monitoring and load balancers."""
@@ -212,12 +223,11 @@ async def api_upload_file(session_id: str, file: UploadFile = File(...)):
         await f.write(content)
 
     with get_db() as conn:
-        cursor = conn.execute(
+        file_id = conn.execute_returning_id(
             """INSERT INTO client_files (session_id, filename, content_type, file_path)
                VALUES (?,?,?,?)""",
             (session_id, file.filename, file.content_type, str(filepath)),
         )
-        file_id = cursor.lastrowid
 
     return {"id": file_id, "filename": file.filename, "path": str(filepath)}
 
@@ -456,9 +466,12 @@ async def _import_rates_excel(file: UploadFile, table_name: str, expected_cols: 
 
     wb = openpyxl.load_workbook(str(save_path), data_only=True, read_only=True)
     ws = wb.active
+    if ws is None:
+        wb.close()
+        return ImportResult(rows_imported=0, errors=["Workbook has no active sheet"])
 
     # Read headers
-    headers = []
+    headers: list[str] = []
     for row in ws.iter_rows(min_row=1, max_row=1, values_only=True):
         headers = [str(c).strip().lower().replace(" ", "_") if c else "" for c in row]
         break
