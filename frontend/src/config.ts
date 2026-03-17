@@ -1,6 +1,8 @@
 /**
- * API base URL for the backend. Set VITE_API_URL in production (e.g. Vercel)
- * so client and admin portals both talk to the same backend.
+ * API base URL for the backend.
+ *
+ * Production (Vercel): set VITE_API_URL env var to backend URL.
+ * Local dev: falls back to localhost:8000 (Vite proxy handles /api).
  */
 export const API_BASE =
   (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
