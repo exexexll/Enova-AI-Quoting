@@ -455,12 +455,22 @@ def _raw_connection() -> _ConnWrapper:
 
 
 def init_db():
-    """Create all tables and seed default config."""
+    """Create all tables and seed default config.
+
+    Safe for concurrent workers: if another process already created
+    the schema (race on SERIAL sequence), we catch and continue.
+    """
     wrapper = _raw_connection()
     try:
         wrapper.executescript(_CREATE_TABLES)
         wrapper.executescript(_INSERT_DEFAULT_CONFIG)
         wrapper.commit()
+    except Exception as exc:
+        wrapper.rollback()
+        if _USE_PG and "already exists" in str(exc).lower():
+            logger.info("Schema already created by another worker — skipping.")
+        else:
+            raise
     finally:
         wrapper.close()
     logger.info("Database initialised (%s)", "PostgreSQL" if _USE_PG else "SQLite")
