@@ -11,18 +11,20 @@ import os
 import re
 import sqlite3
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+import psycopg2
+import psycopg2.extras
 
 from backend.config import DB_PATH
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 _USE_PG = bool(DATABASE_URL)
-
-if _USE_PG:
-    import psycopg2
-    import psycopg2.extras
 
 # ---------------------------------------------------------------------------
 # SQL dialect translation  (SQLite → PostgreSQL)
