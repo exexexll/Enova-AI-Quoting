@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { ChatMessage } from '../hooks/useSSEStream';
 import ThinkingBlock from './ThinkingBlock';
 import SuggestionChips from './SuggestionChips';
@@ -78,7 +79,7 @@ export default function Chat({
             ) : (
               <div className="flex justify-start">
                 <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-md px-5 py-3 max-w-[90%] text-[14px] leading-relaxed prose prose-sm prose-gray max-w-none-table">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                 </div>
               </div>
             )}
@@ -94,7 +95,7 @@ export default function Chat({
         {isStreaming && currentExecuting && (
           <div className="flex justify-start">
             <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-md px-5 py-3 max-w-[90%] text-[14px] leading-relaxed prose prose-sm prose-gray max-w-none-table">
-              <ReactMarkdown>{currentExecuting}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentExecuting}</ReactMarkdown>
               <span className="inline-block w-1.5 h-4 bg-blue-500 rounded-sm animate-pulse ml-0.5 align-text-bottom" />
             </div>
           </div>
