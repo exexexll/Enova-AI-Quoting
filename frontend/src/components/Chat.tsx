@@ -77,7 +77,7 @@ export default function Chat({
               </div>
             ) : (
               <div className="flex justify-start">
-                <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-md px-5 py-3 max-w-[85%] text-[14px] leading-relaxed prose prose-sm prose-gray">
+                <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-md px-5 py-3 max-w-[90%] text-[14px] leading-relaxed prose prose-sm prose-gray max-w-none-table">
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
               </div>
@@ -93,7 +93,7 @@ export default function Chat({
         {/* Streaming: executing (AI response building) */}
         {isStreaming && currentExecuting && (
           <div className="flex justify-start">
-            <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-md px-5 py-3 max-w-[85%] text-[14px] leading-relaxed prose prose-sm prose-gray">
+            <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-md px-5 py-3 max-w-[90%] text-[14px] leading-relaxed prose prose-sm prose-gray max-w-none-table">
               <ReactMarkdown>{currentExecuting}</ReactMarkdown>
               <span className="inline-block w-1.5 h-4 bg-blue-500 rounded-sm animate-pulse ml-0.5 align-text-bottom" />
             </div>

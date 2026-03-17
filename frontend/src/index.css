@@ -40,6 +40,38 @@ body {
   transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
+/* Allow tables in chat messages to use full width */
+.max-w-none-table .prose table,
+.max-w-none-table table {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+/* Prose table styling (fallback for markdown tables in chat) */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75em 0;
+  font-size: 13px;
+}
+.prose thead th {
+  padding: 6px 10px;
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 2px solid #e5e7eb;
+  background-color: #f9fafb;
+  font-size: 12px;
+  color: #6b7280;
+}
+.prose tbody td {
+  padding: 5px 10px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.prose tbody tr:last-child td {
+  border-bottom: none;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
