@@ -39,17 +39,40 @@ logger = logging.getLogger(__name__)
 
 from contextlib import asynccontextmanager
 
+def _deduplicate_ingredients():
+    """Remove duplicate ingredients (same item_name + source_tab), keeping the one with the lowest id."""
+    with get_db() as conn:
+        conn.execute("""
+            DELETE FROM ingredients WHERE id NOT IN (
+                SELECT MIN(id) FROM ingredients GROUP BY item_name, source_tab, supplier
+            )
+        """)
+        remaining = conn.execute("SELECT COUNT(*) as cnt FROM ingredients").fetchone()
+        return remaining["cnt"] if remaining else 0
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Startup/shutdown lifecycle."""
     logger.info("Initializing database...")
     init_db()
-    try:
-        logger.info("Importing ingredient data...")
-        results = import_all()
-        logger.info("Import results: %s", results)
-    except Exception as e:
-        logger.error("Ingredient import failed (non-fatal): %s", e)
+
+    with get_db() as conn:
+        count = conn.execute("SELECT COUNT(*) as cnt FROM ingredients").fetchone()
+        already_imported = (count["cnt"] if count else 0) > 0
+
+    if already_imported:
+        logger.info("Ingredients already in DB (%d rows), skipping import.", count["cnt"] if count else 0)
+        remaining = _deduplicate_ingredients()
+        logger.info("After dedup: %d ingredients", remaining)
+    else:
+        try:
+            logger.info("Importing ingredient data...")
+            results = import_all()
+            logger.info("Import results: %s", results)
+        except Exception as e:
+            logger.error("Ingredient import failed (non-fatal): %s", e)
+
     try:
         logger.info("Building search indices (BM25 only, embeddings on demand)...")
         build_all_indices(skip_embeddings=True)
@@ -390,6 +413,43 @@ async def api_request_revision(contract_id: int, notes: str = ""):
             (notes, contract_id),
         )
     return {"status": "revision"}
+
+
+# ==================== SAMPLE ORDERS ====================
+
+@app.get("/api/admin/sample-orders")
+async def api_list_sample_orders():
+    """List sessions in sample-related workflow states with their ingredients and quotes."""
+    sample_states = ('sample_decision', 'sample_payment', 'sample_production', 'sample_confirmation')
+    with get_db() as conn:
+        sessions = conn.execute(
+            f"SELECT * FROM sessions WHERE workflow_state IN ({','.join('?' * len(sample_states))}) "
+            "ORDER BY updated_at DESC",
+            sample_states,
+        ).fetchall()
+
+        orders = []
+        for s in sessions:
+            ingredients = conn.execute(
+                "SELECT ingredient_name, mg_per_serving, confidence, cost_source "
+                "FROM session_ingredients WHERE session_id=?",
+                (s["id"],),
+            ).fetchall()
+            quote = conn.execute(
+                "SELECT * FROM quotes WHERE session_id=? ORDER BY version DESC LIMIT 1",
+                (s["id"],),
+            ).fetchone()
+            orders.append({
+                "session_id": s["id"],
+                "client_name": s["client_name"],
+                "client_email": s["client_email"],
+                "client_company": s["client_company"],
+                "workflow_state": s["workflow_state"],
+                "updated_at": s["updated_at"],
+                "ingredients": [dict(i) for i in ingredients],
+                "quote": dict(quote) if quote else None,
+            })
+    return orders
 
 
 # ==================== EXPORT ====================

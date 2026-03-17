@@ -6,15 +6,17 @@ import SessionReview from './pages/SessionReview';
 import PricingConfig from './pages/PricingConfig';
 import DBImport from './pages/DBImport';
 import ContractManager from './pages/ContractManager';
+import SampleOrders from './pages/SampleOrders';
 import { API_BASE } from './config';
 
-type Page = 'dashboard' | 'ingredients' | 'queue' | 'sessions' | 'config' | 'import' | 'contracts';
+type Page = 'dashboard' | 'ingredients' | 'queue' | 'sessions' | 'samples' | 'contracts' | 'import' | 'config';
 
 const NAV_ITEMS: { key: Page; label: string; icon: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: '📊' },
   { key: 'ingredients', label: 'Ingredients', icon: '🧪' },
   { key: 'queue', label: 'Request Queue', icon: '📋' },
   { key: 'sessions', label: 'Sessions', icon: '💬' },
+  { key: 'samples', label: 'Sample Orders', icon: '🧫' },
   { key: 'contracts', label: 'Contracts', icon: '📄' },
   { key: 'import', label: 'DB Import', icon: '📥' },
   { key: 'config', label: 'Pricing Config', icon: '⚙️' },
@@ -72,6 +74,7 @@ export default function App() {
         {page === 'sessions' && <SessionReview />}
         {page === 'config' && <PricingConfig />}
         {page === 'import' && <DBImport />}
+        {page === 'samples' && <SampleOrders />}
         {page === 'contracts' && <ContractManager />}
       </main>
     </div>
