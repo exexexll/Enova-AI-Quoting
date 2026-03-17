@@ -218,11 +218,25 @@ export default function App() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      await fetch(`${API_BASE}/api/sessions/${currentSession.id}/upload`, {
+      const resp = await fetch(`${API_BASE}/api/sessions/${currentSession.id}/upload`, {
         method: 'POST', body: formData,
       });
-      sendMessage(currentSession.id, `I've uploaded a file: ${file.name}. Please analyze it and extract any relevant product information.`);
-    } catch (err) { console.error('Upload failed:', err); }
+      if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
+      const isImage = file.type.startsWith('image/');
+      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+      const isPdf = file.name.endsWith('.pdf');
+      const description = isImage
+        ? `I've uploaded an image: ${file.name}. Please analyze it for any supplement formulation, label, or ingredient information.`
+        : isExcel
+          ? `I've uploaded an Excel file: ${file.name}. Please extract ingredient lists, pricing, or formulation data from it.`
+          : isPdf
+            ? `I've uploaded a PDF: ${file.name}. Please extract any relevant product specifications, formulas, or pricing information.`
+            : `I've uploaded a file: ${file.name}. Please analyze it and extract any relevant product information.`;
+      sendMessage(currentSession.id, description);
+    } catch (err) {
+      console.error('Upload failed:', err);
+      sendMessage(currentSession.id, `I tried to upload ${file.name} but the upload failed. Can we continue without it?`);
+    }
   }, [currentSession, sendMessage]);
 
   const handleReviewContract = useCallback(async () => {

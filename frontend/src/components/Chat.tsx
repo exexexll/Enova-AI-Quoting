@@ -53,11 +53,36 @@ export default function Chat({
     const file = e.target.files?.[0];
     if (file && onFileUpload) {
       onFileUpload(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    if (!onFileUpload) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          const named = new File([file], `pasted-image-${Date.now()}.png`, { type: file.type });
+          onFileUpload(named);
+        }
+        return;
+      }
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!onFileUpload) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) onFileUpload(file);
+  };
+
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {messages.length === 0 && !isStreaming && (
@@ -152,6 +177,7 @@ export default function Chat({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onPaste={handlePaste}
             placeholder="Type your message..."
             className="flex-1 bg-gray-50 border-0 rounded-xl px-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white placeholder-gray-400"
             disabled={isStreaming}
