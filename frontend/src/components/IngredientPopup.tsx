@@ -38,11 +38,42 @@ function shuffle<T>(a: T[]): T[] {
   return b;
 }
 
-function getCost(ing: Ingredient): { text: string; hasPrice: boolean } {
+function getCost(ing: Ingredient): { text: string; hasPrice: boolean; estimateText?: string } {
   if (ing.sum_cavg > 0) return { text: `$${ing.sum_cavg.toFixed(4)}/${ing.uom}`, hasPrice: true };
   if (ing.cost_kg > 0) return { text: `$${ing.cost_kg.toFixed(2)}/kg`, hasPrice: true };
   if (ing.price_per_kg != null && ing.price_per_kg > 0) return { text: `$${ing.price_per_kg.toFixed(2)}/kg`, hasPrice: true };
   return { text: 'Price not set', hasPrice: false };
+}
+
+function EstimatedRange({ ingredientName }: { ingredientName: string }) {
+  const [range, setRange] = useState<{ low: number; high: number; items: string[] } | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (loaded) return;
+    setLoaded(true);
+    fetch(`${API_BASE}/api/ingredients/estimate?name=${encodeURIComponent(ingredientName)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && data.est_low && data.est_high) {
+          setRange({ low: data.est_low, high: data.est_high, items: data.similar_items || [] });
+        }
+      })
+      .catch(() => {});
+  }, [ingredientName, loaded]);
+
+  if (!range) return <span className="text-[11px] text-gray-400 italic">No estimate available</span>;
+
+  return (
+    <div>
+      <span className="text-[12px] text-amber-600 font-medium">
+        ~${(range.low * 1000).toFixed(2)} – ${(range.high * 1000).toFixed(2)}/kg
+      </span>
+      <div className="text-[10px] text-gray-400 mt-0.5">
+        Est. from: {range.items.slice(0, 3).join(', ')}
+      </div>
+    </div>
+  );
 }
 
 export default function IngredientPopup({ isOpen, onClose, onSelect, preSearch, sessionId }: IngredientPopupProps) {
@@ -174,11 +205,7 @@ export default function IngredientPopup({ isOpen, onClose, onSelect, preSearch, 
                 <div className={`text-sm font-semibold ${cost.hasPrice ? 'text-green-600' : 'text-amber-500'}`}>
                   {cost.text}
                 </div>
-                {!cost.hasPrice && (
-                  <div className="mt-1 text-[10px] text-gray-400 italic">
-                    Estimated from similar: check with team
-                  </div>
-                )}
+                {!cost.hasPrice && <EstimatedRange ingredientName={i.item_name} />}
               </div>
               <div className="bg-gray-50 rounded-xl p-3">
                 <div className="text-[10px] text-gray-400">Stock</div>
@@ -284,9 +311,11 @@ export default function IngredientPopup({ isOpen, onClose, onSelect, preSearch, 
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`text-[12px] font-medium ${c.hasPrice ? 'text-green-600' : 'text-amber-500'}`}>
-                        {c.text}
-                      </span>
+                      {c.hasPrice ? (
+                        <span className="text-[12px] font-medium text-green-600">{c.text}</span>
+                      ) : (
+                        <EstimatedRange ingredientName={it.item_name} />
+                      )}
                       {!c.hasPrice && !inquireSent.has(it.id) && (
                         <button onClick={e => { e.stopPropagation(); inquirePrice(r); }}
                           className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded hover:bg-amber-100">

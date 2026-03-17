@@ -33,6 +33,7 @@ from backend.services.contract_service import generate_contract
 from backend.retrieval.indexer import build_all_indices
 from backend.retrieval.hybrid_search import hybrid_search
 from backend.agents.orchestrator import create_session, stream_response
+from backend.retrieval.hybrid_search import search_similar_priced as hybrid_search_similar
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -173,6 +174,20 @@ async def api_chat(req: ChatRequest):
 
 
 # ==================== INGREDIENT SEARCH ====================
+
+@app.get("/api/ingredients/estimate")
+async def api_ingredient_estimate(name: str):
+    """Get estimated price range for an ingredient based on similar items."""
+    similar_items, est_low, est_high = hybrid_search_similar(name)
+    if est_low is not None and est_high is not None:
+        return {
+            "name": name,
+            "est_low": round(est_low, 6),
+            "est_high": round(est_high, 6),
+            "similar_items": [s.item_name for s in similar_items[:5]],
+        }
+    return {"name": name, "est_low": None, "est_high": None, "similar_items": []}
+
 
 @app.get("/api/ingredients/sources")
 async def api_ingredient_sources():
