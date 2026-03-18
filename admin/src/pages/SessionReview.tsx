@@ -89,42 +89,32 @@ export default function SessionReview() {
 
   const selectSession = async (session: Session) => {
     try {
-      const [sessResp, msgsResp, fsResp] = await Promise.all([
+      const [sessResp, msgsResp, fsResp, ingResp, quoteResp, escResp] = await Promise.all([
         fetch(`${API}/api/sessions/${session.id}`),
         fetch(`${API}/api/sessions/${session.id}/messages`),
         fetch(`${API}/api/sessions/${session.id}/files`),
+        fetch(`${API}/api/sessions/${session.id}/ingredients`),
+        fetch(`${API}/api/sessions/${session.id}/quote`),
+        fetch(`${API}/api/escalations?status=all`),
       ]);
       const sessData = sessResp.ok ? await sessResp.json() : session;
       const msgs = msgsResp.ok ? await msgsResp.json() : [];
       const fs = fsResp.ok ? await fsResp.json() : [];
+      const ings = ingResp.ok ? await ingResp.json() : [];
+      const qt = quoteResp.ok ? await quoteResp.json() : null;
+      const allEsc = escResp.ok ? await escResp.json() : [];
+
       setSelected(sessData);
       setMessages(Array.isArray(msgs) ? msgs : []);
       setFiles(Array.isArray(fs) ? fs : []);
+      setIngredients(Array.isArray(ings) ? ings : []);
+      setQuote(qt);
 
-      fetch(`${API}/api/admin/sample-orders`)
-        .then(r => r.ok ? r.json() : [])
-        .then(orders => {
-          const order = (orders as Array<{ session_id: string; ingredients: SessionIngredient[]; quote: Quote | null }>)
-            .find((o) => o.session_id === session.id);
-          if (order) {
-            setIngredients(order.ingredients || []);
-            setQuote(order.quote);
-          } else {
-            setIngredients([]);
-            setQuote(null);
-          }
-        })
-        .catch(() => { setIngredients([]); setQuote(null); });
-
-      fetch(`${API}/api/escalations?status=all`)
-        .then(r => r.ok ? r.json() : [])
-        .then(data => {
-          const sessEsc = (data as Escalation[]).filter((e: Escalation & { session_id?: string }) =>
-            (e as unknown as { session_id: string }).session_id === session.id
-          );
-          setEscalations(sessEsc);
-        })
-        .catch(() => setEscalations([]));
+      const sessEsc = (Array.isArray(allEsc) ? allEsc : []).filter(
+        (e: Escalation & { session_id?: string }) =>
+          (e as unknown as { session_id: string }).session_id === session.id
+      );
+      setEscalations(sessEsc);
     } catch (err) {
       console.error('Failed to load session details:', err);
     }

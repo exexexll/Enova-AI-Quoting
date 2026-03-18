@@ -5,9 +5,12 @@ export type Session = {
   id: string;
   client_name?: string;
   client_company?: string;
+  client_phone?: string;
+  client_address?: string;
   status: string;
   workflow_state: string;
   contract_status?: string;
+  product_specs?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };

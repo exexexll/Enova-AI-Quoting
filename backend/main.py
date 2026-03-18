@@ -318,6 +318,36 @@ async def api_list_session_files(session_id: str):
     return [dict(r) for r in rows]
 
 
+# ==================== SESSION INGREDIENTS & QUOTES ====================
+
+@app.get("/api/sessions/{session_id}/ingredients")
+async def api_session_ingredients(session_id: str):
+    """Return all selected ingredients for a session."""
+    with get_db() as conn:
+        rows = conn.execute(
+            """SELECT ingredient_name, mg_per_serving, label_claim, uom,
+                      unit_cost, cost_source, confidence, est_low, est_high, similar_items
+               FROM session_ingredients WHERE session_id=? ORDER BY id""",
+            (session_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.get("/api/sessions/{session_id}/quote")
+async def api_session_quote(session_id: str):
+    """Return the latest pricing quote for a session."""
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM quotes WHERE session_id=? ORDER BY version DESC LIMIT 1",
+            (session_id,),
+        ).fetchone()
+    if not row:
+        return None
+    d = dict(row)
+    d.pop("breakdown_json", None)
+    return d
+
+
 # ==================== ESCALATION QUEUE ====================
 
 @app.get("/api/escalations", response_model=list[EscalationOut])
@@ -480,7 +510,7 @@ async def api_list_sample_orders():
         orders = []
         for s in sessions:
             ingredients = conn.execute(
-                "SELECT ingredient_name, mg_per_serving, confidence, cost_source "
+                "SELECT ingredient_name, mg_per_serving, confidence, cost_source, unit_cost "
                 "FROM session_ingredients WHERE session_id=?",
                 (s["id"],),
             ).fetchall()

@@ -58,6 +58,7 @@ class SessionOut(BaseModel):
     status: str = "active"
     workflow_state: str = "intake"
     contract_status: Optional[str] = None
+    product_specs: Optional[dict] = None
     created_at: str
     updated_at: str
 

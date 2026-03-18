@@ -8,6 +8,19 @@ from backend.models.database import get_db
 from backend.models.schemas import SessionOut, ChatMessageOut
 
 
+def _extract_product_specs(row) -> Optional[dict]:
+    """Parse product_specs from context_json."""
+    ctx_raw = row["context_json"] if row else None
+    if not ctx_raw:
+        return None
+    try:
+        ctx = json.loads(ctx_raw)
+        specs = ctx.get("product_specs")
+        return specs if specs else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 def get_session(session_id: str) -> Optional[SessionOut]:
     with get_db() as conn:
         row = conn.execute("SELECT * FROM sessions WHERE id=?", (session_id,)).fetchone()
@@ -23,6 +36,7 @@ def get_session(session_id: str) -> Optional[SessionOut]:
         status=row["status"],
         workflow_state=row["workflow_state"],
         contract_status=row["contract_status"],
+        product_specs=_extract_product_specs(row),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -46,6 +60,7 @@ def list_sessions(status: str | None = None, limit: int = 50) -> list[SessionOut
             client_company=r["client_company"], client_phone=r["client_phone"],
             client_address=r["client_address"], status=r["status"],
             workflow_state=r["workflow_state"], contract_status=r["contract_status"],
+            product_specs=_extract_product_specs(r),
             created_at=r["created_at"], updated_at=r["updated_at"],
         )
         for r in rows
